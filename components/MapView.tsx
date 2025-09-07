@@ -1,35 +1,31 @@
 "use client";
 
+import { useRouteStore, type Waypoint, type RouteFeatureCollection } from "@/lib/routeStore";
 import type { FeatureCollection } from "geojson";
 import maplibregl from "maplibre-gl";
 import { useEffect, useMemo, useRef } from "react";
 import { Layer, Map, Marker, Source, type MapRef } from "react-map-gl/maplibre";
 
-export type LatLng = { lat: number; lon: number };
-
-export type RouteFeatureCollection = FeatureCollection;
-
 export type MapViewProps = {
-  origin?: { name?: string; coords?: LatLng };
-  destination?: { name?: string; coords?: LatLng };
-  route?: RouteFeatureCollection | null;
   boundsPadding?: number | { top: number; right: number; bottom: number; left: number };
 };
 
 function FitToContent({
-  origin,
-  destination,
+  waypoints,
   route,
   mapRef,
   padding,
-}: Required<Pick<MapViewProps, "origin" | "destination" | "route">> & {
+}: {
+  waypoints: Waypoint[];
+  route: RouteFeatureCollection | null;
   mapRef: MapRef | null;
   padding: number | { top: number; right: number; bottom: number; left: number };
 }) {
   useEffect(() => {
     const bounds: [number, number][] = [];
-    if (origin.coords) bounds.push([origin.coords.lat, origin.coords.lon]);
-    if (destination.coords) bounds.push([destination.coords.lat, destination.coords.lon]);
+    for (const wp of waypoints) {
+      if (wp.coords) bounds.push([wp.coords.lat, wp.coords.lon]);
+    }
 
     if (route && (route.features?.length ?? 0) > 0) {
       for (const feature of route.features) {
@@ -59,27 +55,31 @@ function FitToContent({
         { padding },
       );
     }
-  }, [origin, destination, route, mapRef, padding]);
+  }, [waypoints, route, mapRef, padding]);
 
   return null;
 }
 
-export function MapView({ origin, destination, route, boundsPadding }: MapViewProps) {
+export function MapView({ boundsPadding }: MapViewProps) {
   const mapRef = useRef<MapRef | null>(null);
 
+  // Read from the shared store
+  const wps = useRouteStore((s) => s.waypoints) as Waypoint[];
+  const rt = useRouteStore((s) => s.route) as RouteFeatureCollection | null;
+
   const center = useMemo<[number, number]>(() => {
-    if (origin?.coords) return [origin.coords.lat, origin.coords.lon];
-    if (destination?.coords) return [destination.coords.lat, destination.coords.lon];
+    const first = wps.find((w) => !!w.coords);
+    if (first?.coords) return [first.coords.lat, first.coords.lon];
     return [37.3688, -122.0363];
-  }, [origin, destination]);
+  }, [wps]);
 
   const primaryRoute = useMemo((): FeatureCollection | null => {
-    if (!route || !Array.isArray(route.features) || route.features.length === 0) {
+    if (!rt || !Array.isArray(rt.features) || rt.features.length === 0) {
       return null;
     }
-    const [first] = route.features;
+    const [first] = rt.features;
     return { type: "FeatureCollection", features: [first] };
-  }, [route]);
+  }, [rt]);
 
   return (
     <Map
@@ -89,17 +89,21 @@ export function MapView({ origin, destination, route, boundsPadding }: MapViewPr
       style={{ width: "100%", height: "100%" }}
       mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
     >
-      {origin?.coords && (
-        <Marker latitude={origin.coords.lat} longitude={origin.coords.lon} anchor="bottom">
+      {wps.length > 0 && wps[0]?.coords && (
+        <Marker latitude={wps[0].coords!.lat} longitude={wps[0].coords!.lon} anchor="bottom">
           <div className="px-2 py-1 text-xs bg-black text-white border-2 border-black">
-            Start{origin.name ? `: ${origin.name}` : ""}
+            Start{wps[0].name ? `: ${wps[0].name}` : ""}
           </div>
         </Marker>
       )}
-      {destination?.coords && (
-        <Marker latitude={destination.coords.lat} longitude={destination.coords.lon} anchor="bottom">
+      {wps.length > 1 && wps[wps.length - 1]?.coords && (
+        <Marker
+          latitude={wps[wps.length - 1].coords!.lat}
+          longitude={wps[wps.length - 1].coords!.lon}
+          anchor="bottom"
+        >
           <div className="px-2 py-1 text-xs bg-black text-white border-2 border-black">
-            Destination{destination.name ? `: ${destination.name}` : ""}
+            End{wps[wps.length - 1].name ? `: ${wps[wps.length - 1].name}` : ""}
           </div>
         </Marker>
       )}
@@ -115,16 +119,15 @@ export function MapView({ origin, destination, route, boundsPadding }: MapViewPr
       )}
 
       <FitToContent
-        origin={{ name: origin?.name, coords: origin?.coords }}
-        destination={{ name: destination?.name, coords: destination?.coords }}
+        waypoints={wps}
         route={primaryRoute ?? null}
         mapRef={mapRef.current}
         padding={
           boundsPadding ?? {
-            top: 150,
-            right: 150,
-            bottom: 150,
-            left: 150,
+            top: 50,
+            right: 50,
+            bottom: 50,
+            left: 50,
           }
         }
       />
