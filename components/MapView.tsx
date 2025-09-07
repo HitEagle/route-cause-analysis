@@ -73,18 +73,12 @@ export function MapView({ origin, destination, route, boundsPadding }: MapViewPr
     return [37.3688, -122.0363];
   }, [origin, destination]);
 
-  const [primaryRoute, altRoutes] = useMemo((): [
-    FeatureCollection | null,
-    FeatureCollection | null,
-  ] => {
+  const primaryRoute = useMemo((): FeatureCollection | null => {
     if (!route || !Array.isArray(route.features) || route.features.length === 0) {
-      return [null, null];
+      return null;
     }
-    const [first, ...rest] = route.features;
-    const primary: FeatureCollection = { type: "FeatureCollection", features: [first] };
-    const alts: FeatureCollection | null =
-      rest.length > 0 ? { type: "FeatureCollection", features: rest } : null;
-    return [primary, alts];
+    const [first] = route.features;
+    return { type: "FeatureCollection", features: [first] };
   }, [route]);
 
   return (
@@ -119,20 +113,11 @@ export function MapView({ origin, destination, route, boundsPadding }: MapViewPr
           />
         </Source>
       )}
-      {altRoutes && (
-        <Source id="route-alt" type="geojson" data={altRoutes}>
-          <Layer
-            id="route-alt-line"
-            type="line"
-            paint={{ "line-color": "#777777", "line-width": 4, "line-dasharray": [8, 8], "line-opacity": 0.95 }}
-          />
-        </Source>
-      )}
 
       <FitToContent
         origin={{ name: origin?.name, coords: origin?.coords }}
         destination={{ name: destination?.name, coords: destination?.coords }}
-        route={route ?? null}
+        route={primaryRoute ?? null}
         mapRef={mapRef.current}
         padding={
           boundsPadding ?? {
