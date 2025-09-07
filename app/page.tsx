@@ -16,17 +16,19 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-[2fr_1fr]">
-      <div className="border-r-4 border-black h-[60vh] md:h-auto md:min-h-screen">
-        <MapView origin={origin} destination={destination} route={route ?? undefined} />
-      </div>
-      <div className="min-h-[40vh] md:min-h-screen flex flex-col" style={{ background: "#fefefe" }}>
-        <header className="p-4 border-b-4 border-black">
-          <h1 className="text-2xl font-extrabold uppercase tracking-tight">Route Planner</h1>
-          <p className="text-xs text-gray-600">Brutalist, bold, and to the point.</p>
-        </header>
-        <div className="flex-1">
-          <Chat onResolved={handleResolved} />
+    <div className="h-[100vh] bg-[#f8f8f6] p-4 md:p-6">
+      <div className="h-full grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4 md:gap-6">
+        <div className="brutalist-card bg-white h-full">
+          <MapView origin={origin} destination={destination} route={route ?? undefined} />
+        </div>
+
+        <div className="brutalist-card bg-white h-full flex flex-col">
+          <header className="p-4 border-b-4 border-black">
+            <h1 className="text-2xl md:text-3xl font-extrabold uppercase tracking-tight">Route Planner</h1>
+          </header>
+          <div className="flex-1 min-h-0">
+            <Chat onResolved={handleResolved} />
+          </div>
         </div>
       </div>
     </div>
