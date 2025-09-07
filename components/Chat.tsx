@@ -47,13 +47,32 @@ function lastAssistantText(history: AgentHistoryItem[]): string | null {
 
 function extractToolResult(
   history: AgentHistoryItem[],
-): { origin?: { name: string; lat: number; lon: number }; destination?: { name: string; lat: number; lon: number } } | null {
+):
+  | {
+      originQuery: string;
+      destinationQuery: string;
+      originLabel: string;
+      destinationLabel: string;
+    }
+  | null {
   for (const item of history ?? []) {
-    if (item.type === "function_call_result" && item.name === "resolve_route") {
+    if (item.type === "function_call_result" && item.name === "collect_route_inputs") {
       try {
         if (item.output?.type === "text" && item.output?.text) {
           const parsed = JSON.parse(item.output.text);
-          return { origin: parsed.origin, destination: parsed.destination };
+          if (
+            parsed.originQuery &&
+            parsed.destinationQuery &&
+            parsed.originLabel &&
+            parsed.destinationLabel
+          ) {
+            return {
+              originQuery: parsed.originQuery as string,
+              destinationQuery: parsed.destinationQuery as string,
+              originLabel: parsed.originLabel as string,
+              destinationLabel: parsed.destinationLabel as string,
+            };
+          }
         }
       } catch {
         // ignore
@@ -98,6 +117,7 @@ export function Chat({ onResolved }: ChatProps) {
     setMessages(next);
     setBusy(true);
     try {
+      let encounteredError = false;
       const data = await runAgent(next);
       const history = data.history ?? [];
       const placeholderIndex = next.length - 1; // index of the assistant placeholder
@@ -111,34 +131,85 @@ export function Chat({ onResolved }: ChatProps) {
       }
 
       const payload = extractToolResult(history);
-      if (payload?.origin && payload.destination) {
-        // Fetch the route on the client after we have coordinates
-        const routeRes = await fetch("/api/routing", {
+      if (payload) {
+        // First, ask the server to geocode the normalized queries.
+        const geoRes = await fetch("/api/geocode/resolve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            origin: { lat: payload.origin.lat, lon: payload.origin.lon },
-            destination: { lat: payload.destination.lat, lon: payload.destination.lon },
+            originQuery: payload.originQuery,
+            destinationQuery: payload.destinationQuery,
           }),
         });
-        if (routeRes.ok) {
-          const route = (await routeRes.json()) as FeatureCollection;
-          onResolved({
-            type: "resolved",
-            origin: { name: payload.origin.name, coords: { lat: payload.origin.lat, lon: payload.origin.lon } },
-            destination: {
-              name: payload.destination.name,
-              coords: { lat: payload.destination.lat, lon: payload.destination.lon },
-            },
-            summary: data.response ?? undefined,
-            route,
+
+        if (geoRes.ok) {
+          const resolved = (await geoRes.json()) as {
+            origin: { name: string; lat: number; lon: number };
+            destination: { name: string; lat: number; lon: number };
+          };
+
+          // Indicate routing fetch in the same assistant bubble
+          setMessages((m) =>
+            m.map((msg, i) => (i === placeholderIndex ? { ...msg, content: "Fetching route…" } : msg)),
+          );
+
+          // Then fetch the route using the coords.
+          const routeRes = await fetch("/api/routing", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              origin: { lat: resolved.origin.lat, lon: resolved.origin.lon },
+              destination: { lat: resolved.destination.lat, lon: resolved.destination.lon },
+            }),
           });
+          if (routeRes.ok) {
+            const route = (await routeRes.json()) as FeatureCollection;
+            onResolved({
+              type: "resolved",
+              origin: {
+                name:
+                  (payload.originLabel && payload.originLabel.trim()) ||
+                  (resolved.origin.name ?? "Origin"),
+                coords: { lat: resolved.origin.lat, lon: resolved.origin.lon },
+              },
+              destination: {
+                name:
+                  (payload.destinationLabel && payload.destinationLabel.trim()) ||
+                  (resolved.destination.name ?? "Destination"),
+                coords: { lat: resolved.destination.lat, lon: resolved.destination.lon },
+              },
+              summary: data.response ?? undefined,
+              route,
+            });
+          } else {
+            // Routing failed
+            encounteredError = true;
+            setMessages((m) =>
+              m.map((msg, i) =>
+                i === placeholderIndex
+                  ? { ...msg, content: "I couldn’t fetch a route between those places. Please try again." }
+                  : msg,
+              ),
+            );
+          }
+        } else {
+          // Geocoding failed
+          encounteredError = true;
+          setMessages((m) =>
+            m.map((msg, i) =>
+              i === placeholderIndex
+                ? { ...msg, content: "I couldn’t resolve those places. Could you be more specific?" }
+                : msg,
+            ),
+          );
         }
       }
 
       // Finally, replace the placeholder content with the assistant's final text
       const finalText = lastAssistantText(history) ?? (data.response as string | undefined) ?? "Done.";
-      setMessages((m) => m.map((msg, i) => (i === placeholderIndex ? { ...msg, content: finalText } : msg)));
+      if (!encounteredError) {
+        setMessages((m) => m.map((msg, i) => (i === placeholderIndex ? { ...msg, content: finalText } : msg)));
+      }
     } catch {
       setMessages((m) => [
         ...m,
