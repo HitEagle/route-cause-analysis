@@ -67,7 +67,7 @@ export function MapView({ origin, destination, route }: MapViewProps) {
   const center = useMemo<[number, number]>(() => {
     if (origin?.coords) return [origin.coords.lat, origin.coords.lon];
     if (destination?.coords) return [destination.coords.lat, destination.coords.lon];
-    return [39.8283, -98.5795];
+    return [37.3688, -122.0363];
   }, [origin, destination]);
 
   // memoized key can be used for forcing rerenders if needed
@@ -91,7 +91,7 @@ export function MapView({ origin, destination, route }: MapViewProps) {
     <Map
       ref={mapRef}
       mapLib={maplibregl}
-      initialViewState={{ latitude: center[0], longitude: center[1], zoom: 5 }}
+      initialViewState={{ latitude: center[0], longitude: center[1], zoom: 9 }}
       style={{ width: "100%", height: "100%" }}
       mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
     >
