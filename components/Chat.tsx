@@ -156,7 +156,7 @@ export function Chat({ onResolved }: ChatProps) {
         className="flex-1 overflow-y-auto p-4 space-y-4 border-b-4 border-black"
       >
         {messages.map((m, i) => (
-          <div key={i} className={clsx("max-w-[92%]", m.role === "user" ? "ml-auto" : "mr-auto")}> 
+          <div key={i} className={clsx("max-w-[92%]", m.role === "user" ? "ml-auto" : "mr-auto")}>
             <div
               className={clsx(
                 "px-4 py-3 border-4",
