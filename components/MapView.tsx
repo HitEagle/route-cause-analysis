@@ -13,6 +13,7 @@ export type MapViewProps = {
   origin?: { name?: string; coords?: LatLng };
   destination?: { name?: string; coords?: LatLng };
   route?: RouteFeatureCollection | null;
+  boundsPadding?: number | { top: number; right: number; bottom: number; left: number };
 };
 
 function FitToContent({
@@ -20,8 +21,10 @@ function FitToContent({
   destination,
   route,
   mapRef,
+  padding,
 }: Required<Pick<MapViewProps, "origin" | "destination" | "route">> & {
   mapRef: MapRef | null;
+  padding: number | { top: number; right: number; bottom: number; left: number };
 }) {
   useEffect(() => {
     const bounds: [number, number][] = [];
@@ -53,15 +56,15 @@ function FitToContent({
           [west, south],
           [east, north],
         ],
-        { padding: 40 },
+        { padding },
       );
     }
-  }, [origin, destination, route, mapRef]);
+  }, [origin, destination, route, mapRef, padding]);
 
   return null;
 }
 
-export function MapView({ origin, destination, route }: MapViewProps) {
+export function MapView({ origin, destination, route, boundsPadding }: MapViewProps) {
   const mapRef = useRef<MapRef | null>(null);
 
   const center = useMemo<[number, number]>(() => {
@@ -69,9 +72,6 @@ export function MapView({ origin, destination, route }: MapViewProps) {
     if (destination?.coords) return [destination.coords.lat, destination.coords.lon];
     return [37.3688, -122.0363];
   }, [origin, destination]);
-
-  // memoized key can be used for forcing rerenders if needed
-  // const routeKey = useMemo(() => JSON.stringify(route ?? {}).length, [route]);
 
   const [primaryRoute, altRoutes] = useMemo((): [
     FeatureCollection | null,
@@ -134,6 +134,14 @@ export function MapView({ origin, destination, route }: MapViewProps) {
         destination={{ name: destination?.name, coords: destination?.coords }}
         route={route ?? null}
         mapRef={mapRef.current}
+        padding={
+          boundsPadding ?? {
+            top: 150,
+            right: 150,
+            bottom: 150,
+            left: 150,
+          }
+        }
       />
     </Map>
   );
