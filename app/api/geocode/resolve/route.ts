@@ -5,33 +5,26 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as {
-      originQuery?: string;
-      destinationQuery?: string;
-    } | null;
+    type WaypointsBody = { waypointQueries?: string[] };
+    const body = (await req.json()) as WaypointsBody | null;
 
-    const originQuery = body?.originQuery?.trim();
-    const destinationQuery = body?.destinationQuery?.trim();
-
-    if (!originQuery || !destinationQuery) {
+    if (!body || !Array.isArray(body.waypointQueries)) {
       return NextResponse.json(
-        { error: "Missing origin or destination query" },
+        { error: "Expected waypointQueries: string[]" },
         { status: 400 },
       );
     }
 
-    const [origin, destination] = await Promise.all([
-      geocode(originQuery),
-      geocode(destinationQuery),
-    ]);
-
+    const waypointQueries = body.waypointQueries.map((q) => `${q}`.trim()).filter(Boolean);
+    if (waypointQueries.length < 2) {
+      return NextResponse.json(
+        { error: "Need at least two waypoint queries" },
+        { status: 400 },
+      );
+    }
+    const results = await Promise.all(waypointQueries.map((q) => geocode(q)));
     return NextResponse.json({
-      origin: { name: origin.name, lat: origin.lat, lon: origin.lon },
-      destination: {
-        name: destination.name,
-        lat: destination.lat,
-        lon: destination.lon,
-      },
+      waypoints: results.map((r) => ({ name: r.name, lat: r.lat, lon: r.lon })),
     });
   } catch {
     return NextResponse.json(

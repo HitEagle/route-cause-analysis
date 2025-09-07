@@ -5,13 +5,7 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { origin, destination, mode = "drive" } = body || {};
-    if (!origin || !destination) {
-      return NextResponse.json(
-        { error: "Missing origin or destination" },
-        { status: 400 },
-      );
-    }
+    const { waypoints, constraints, mode = "drive" } = body || {};
 
     const apiKey = process.env.GEOAPIFY_API_KEY;
     if (!apiKey) {
@@ -21,8 +15,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const waypoints = `${origin.lat},${origin.lon}|${destination.lat},${destination.lon}`;
-    const params = new URLSearchParams({ waypoints, mode, apiKey });
+    if (!Array.isArray(waypoints) || waypoints.length < 2) {
+      return NextResponse.json(
+        { error: "Missing waypoints (need at least start and end)" },
+        { status: 400 },
+      );
+    }
+
+    const coords = waypoints as { lat: number; lon: number }[];
+    const wpParam = coords.map((c) => `${c.lat},${c.lon}`).join("|");
+
+    const avoid: string[] = [];
+    if (constraints?.avoidHighways) avoid.push("highways");
+    if (constraints?.avoidTolls) avoid.push("toll");
+    if (constraints?.avoidFerries) avoid.push("ferry");
+
+    const params = new URLSearchParams({ waypoints: wpParam, mode, apiKey });
+    if (avoid.length > 0) params.set("avoid", avoid.join("|"));
+
     const url = `https://api.geoapify.com/v1/routing?${params.toString()}`;
 
     const res = await fetch(url);
