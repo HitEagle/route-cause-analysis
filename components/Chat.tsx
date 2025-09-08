@@ -16,6 +16,51 @@ type AgentHistoryItem =
   | { type: 'function_call'; name: string }
   | { type: 'function_call_result'; name: string; output?: { type: 'text'; text: string } };
 
+// Waypoints that come back from the agent plan
+type PlanWaypoint = { query: string; label?: string; role: "start" | "via" | "end" };
+
+function isFunctionCall(item: AgentHistoryItem): item is { type: "function_call"; name: string } {
+  return item.type === "function_call";
+}
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
+function isPlanWaypointArray(val: unknown): val is PlanWaypoint[] {
+  if (!Array.isArray(val) || val.length < 2) return false;
+  return val.every((w) => {
+    if (!isRecord(w)) return false;
+    const role = w["role"];
+    const roleOk = role === "start" || role === "via" || role === "end";
+    const query = w["query"];
+    const label = w["label"];
+    const queryOk = typeof query === "string" && !!query.trim();
+    const labelOk = label === undefined || typeof label === "string";
+    return roleOk && queryOk && labelOk;
+  });
+}
+
+type GeoResolved = { waypoints: { name: string; lat: number; lon: number }[] };
+
+function isGeoResolved(val: unknown): val is GeoResolved {
+  if (!isRecord(val)) return false;
+  const wps = val["waypoints"];
+  if (!Array.isArray(wps)) return false;
+  return wps.every(
+    (w) =>
+      isRecord(w) &&
+      typeof w["name"] === "string" &&
+      typeof w["lat"] === "number" &&
+      typeof w["lon"] === "number",
+  );
+}
+
+function isFeatureCollection(obj: unknown): obj is FeatureCollection {
+  if (!isRecord(obj)) return false;
+  return obj["type"] === "FeatureCollection" && Array.isArray(obj["features"]);
+}
+
 function lastAssistantText(history: AgentHistoryItem[]): string | null {
   for (let i = history.length - 1; i >= 0; i--) {
     const item = history[i];
@@ -32,20 +77,16 @@ function lastAssistantText(history: AgentHistoryItem[]): string | null {
   return null;
 }
 
-function extractPlan(history: AgentHistoryItem[]):
-  | {
-      waypoints: { query: string; label: string; role: "start" | "via" | "end" }[];
-    }
-  | null {
+function extractPlan(
+  history: AgentHistoryItem[],
+): { waypoints: PlanWaypoint[] } | null {
   for (const item of history ?? []) {
     if (item.type === "function_call_result" && item.name === "submit_route_plan") {
       try {
         if (item.output?.type === "text" && item.output?.text) {
-          const parsed = JSON.parse(item.output.text);
-          if (Array.isArray(parsed.waypoints) && parsed.waypoints.length >= 2) {
-            return {
-              waypoints: parsed.waypoints as { query: string; label: string; role: "start" | "via" | "end" }[],
-            };
+          const parsed: unknown = JSON.parse(item.output.text);
+          if (isRecord(parsed) && isPlanWaypointArray(parsed["waypoints"])) {
+            return { waypoints: parsed["waypoints"] };
           }
         }
       } catch {
@@ -65,6 +106,8 @@ function initialMessages(): ChatMessage[] {
   ];
 }
 
+type AgentRunResult = { history?: AgentHistoryItem[]; response?: string };
+
 export function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -82,7 +125,9 @@ export function Chat() {
   useEffect(() => {
     try {
       abortRef.current?.abort();
-    } catch {}
+    } catch {
+      // ignore abort errors when resetting chat
+    }
     abortRef.current = null;
     setMessages(initialMessages());
     setInput("");
@@ -90,10 +135,12 @@ export function Chat() {
     scrollerRef.current?.scrollTo({ top: 0 });
   }, [resetSeq]);
 
-  async function runAgent(allMessages: ChatMessage[]) {
+  async function runAgent(allMessages: ChatMessage[]): Promise<AgentRunResult> {
     try {
       abortRef.current?.abort();
-    } catch {}
+    } catch {
+      // ignore abort errors before starting a new run
+    }
     const controller = new AbortController();
     abortRef.current = controller;
     const res = await fetch("/api/agent/run", {
@@ -103,7 +150,8 @@ export function Chat() {
       signal: controller.signal,
     });
     if (!res.ok) throw new Error("Agent run failed");
-    return res.json();
+    const data: AgentRunResult = await res.json();
+    return data;
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -125,9 +173,7 @@ export function Chat() {
       const placeholderIndex = next.length - 1; // index of the assistant placeholder
 
       // If the agent called a tool, briefly reflect that status in the same bubble
-      const fnCall = history.find((h: AgentHistoryItem) => h.type === "function_call") as
-        | { type: "function_call"; name: string }
-        | undefined;
+      const fnCall = history.find(isFunctionCall);
       if (fnCall) {
         setMessages((m) => m.map((msg, i) => (i === placeholderIndex ? { ...msg, content: `Calling ${fnCall.name}…` } : msg)));
       }
@@ -144,13 +190,11 @@ export function Chat() {
         });
 
         if (geoRes.ok) {
-          const resolved = (await geoRes.json()) as {
-            waypoints: { name: string; lat: number; lon: number }[];
-          };
-
-          if (!Array.isArray(resolved.waypoints) || resolved.waypoints.length !== plan.waypoints.length) {
+          const resolvedJson = await geoRes.json();
+          if (!isGeoResolved(resolvedJson) || resolvedJson.waypoints.length !== plan.waypoints.length) {
             throw new Error("Geocoding mismatch");
           }
+          const resolved = resolvedJson;
 
           // Indicate routing fetch in the same assistant bubble
           setMessages((m) =>
@@ -168,7 +212,9 @@ export function Chat() {
           });
 
           if (routeRes.ok) {
-            const route = (await routeRes.json()) as FeatureCollection;
+            const routeJson = await routeRes.json();
+            if (!isFeatureCollection(routeJson)) throw new Error("Invalid route");
+            const route = routeJson;
 
             // Build combined waypoints with labels/roles
             const combined = plan.waypoints.map((w, i) => ({
@@ -176,8 +222,8 @@ export function Chat() {
               coords: { lat: resolved.waypoints[i].lat, lon: resolved.waypoints[i].lon },
               role: w.role,
             }));
-
-            setWaypoints(combined as Waypoint[]);
+            const combinedWaypoints: Waypoint[] = combined;
+            setWaypoints(combinedWaypoints);
             setRoute(route);
           } else {
             // Routing failed
@@ -204,16 +250,13 @@ export function Chat() {
       }
 
       // Finally, replace the placeholder content with the assistant's final text
-      const finalText = lastAssistantText(history) ?? (data.response as string | undefined) ?? "Done.";
+      const finalText = lastAssistantText(history) ?? (typeof data.response === "string" ? data.response : undefined) ?? "Done.";
       if (!encounteredError) {
         setMessages((m) => m.map((msg, i) => (i === placeholderIndex ? { ...msg, content: finalText } : msg)));
       }
     } catch (err: unknown) {
       const isAbort =
-        !!err &&
-        typeof err === "object" &&
-        "name" in err &&
-        (err as { name?: string }).name === "AbortError";
+        (err instanceof DOMException || err instanceof Error) && err.name === "AbortError";
       if (isAbort) {
         // Silently ignore aborts (e.g., when user cleared the chat)
       } else {
