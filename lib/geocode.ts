@@ -3,7 +3,7 @@ export type GeocodeResult = { name: string; lat: number; lon: number };
 export async function geocode(text: string): Promise<GeocodeResult> {
   const apiKey = process.env.GEOAPIFY_API_KEY;
   if (!apiKey) throw new Error("Missing GEOAPIFY_API_KEY");
-  const params = new URLSearchParams({ text, apiKey, limit: "5", lang: "en" });
+  const params = new URLSearchParams({ text, apiKey, limit: "1", lang: "en" });
   const res = await fetch(
     `https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`,
   );
