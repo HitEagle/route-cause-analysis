@@ -2,18 +2,16 @@
 
 > Agent‑powered route diagnostics. Licensed to route. Extremely employable.
 
-[![Next.js 15](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs)](https://nextjs.org)
-[![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
-[![TypeScript 5](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![MapLibre GL](https://img.shields.io/badge/MapLibre-GL-1F6B75)](https://maplibre.org)
-[![Geoapify](https://img.shields.io/badge/Geoapify-API-orange)](https://www.geoapify.com)
-[![OpenAI Agents](https://img.shields.io/badge/OpenAI-Agents-412991?logo=openai&logoColor=white)](https://platform.openai.com)
-[![Zustand](https://img.shields.io/badge/Zustand-%F0%9F%90%BB-000000)](https://github.com/pmndrs/zustand)
-[![Turbopack](https://img.shields.io/badge/Turbopack-enabled-000000?logo=vercel&logoColor=white)](https://nextjs.org/docs/app/building-your-application/deploying/turbopack)
-[![Node 18+](https://img.shields.io/badge/Node-18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](./)
-[![LinkedIn Shitpost](https://img.shields.io/badge/LinkedIn-shitpost-blueviolet)](./README.md)
+[![Works on My Machine](https://img.shields.io/badge/works_on_my_machine-yes-lightgrey)](#)
+[![Ship Mode](https://img.shields.io/badge/ship_mode-YOLO-000000)](#)
+[![Coverage](https://img.shields.io/badge/coverage-3%25%20vibes-ff69b4)](#)
+[![Tests](https://img.shields.io/badge/tests-flaky-yellow)](#)
+[![Bus Factor](https://img.shields.io/badge/bus_factor-1-red)](#)
+[![Powered By](https://img.shields.io/badge/powered_by-vibes_%26_caffeine-blue)](#)
+[![Tech Debt](https://img.shields.io/badge/tech_debt-compounding-orange)](#)
+[![PRs](https://img.shields.io/badge/PRs-unhinged_welcome-brightgreen)](#)
+[![LinkedIn Shitpost](https://img.shields.io/badge/LinkedIn-shitpost-blueviolet)](#)
+[![Agent](https://img.shields.io/badge/agent-licensed_to_route-critical)](#)
 
 ![Route Cause Analysis screenshot](./screenshot.png)
 
