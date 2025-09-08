@@ -1,11 +1,30 @@
+import { validateJson } from "@/lib/validate";
 import { NextRequest, NextResponse } from "next/server";
+import z from "zod";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { waypoints, constraints, mode = "drive" } = body || {};
+    const schema = z.object({
+      waypoints: z
+        .array(z.object({ lat: z.number(), lon: z.number() }))
+        .min(2, "Need at least start and end waypoints"),
+      constraints: z
+        .object({
+          avoidHighways: z.boolean().optional().default(false),
+          avoidTolls: z.boolean().optional().default(false),
+          avoidFerries: z.boolean().optional().default(false),
+        })
+        .partial()
+        .optional()
+        .default({}),
+      mode: z.string().optional().default("drive"),
+    });
+
+    const validated = await validateJson(req, schema);
+    if (!validated.success) return validated.response;
+    const { waypoints, constraints, mode } = validated.data;
 
     const apiKey = process.env.GEOAPIFY_API_KEY;
     if (!apiKey) {
@@ -15,15 +34,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!Array.isArray(waypoints) || waypoints.length < 2) {
-      return NextResponse.json(
-        { error: "Missing waypoints (need at least start and end)" },
-        { status: 400 },
-      );
-    }
-
-    const coords = waypoints as { lat: number; lon: number }[];
-    const wpParam = coords.map((c) => `${c.lat},${c.lon}`).join("|");
+    const wpParam = waypoints.map((c) => `${c.lat},${c.lon}`).join("|");
 
     const avoid: string[] = [];
     if (constraints?.avoidHighways) avoid.push("highways");

@@ -1,27 +1,18 @@
 import { geocode } from "@/lib/geocode";
+import { validateJson } from "@/lib/validate";
 import { NextRequest, NextResponse } from "next/server";
+import z from "zod";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    type WaypointsBody = { waypointQueries?: string[] };
-    const body = (await req.json()) as WaypointsBody | null;
-
-    if (!body || !Array.isArray(body.waypointQueries)) {
-      return NextResponse.json(
-        { error: "Expected waypointQueries: string[]" },
-        { status: 400 },
-      );
-    }
-
-    const waypointQueries = body.waypointQueries.map((q) => `${q}`.trim()).filter(Boolean);
-    if (waypointQueries.length < 2) {
-      return NextResponse.json(
-        { error: "Need at least two waypoint queries" },
-        { status: 400 },
-      );
-    }
+    const schema = z.object({
+      waypointQueries: z.array(z.string().trim().min(1)).min(2),
+    });
+    const validated = await validateJson(req, schema);
+    if (!validated.success) return validated.response;
+    const { waypointQueries } = validated.data;
     const results = await Promise.all(waypointQueries.map((q) => geocode(q)));
     return NextResponse.json({
       waypoints: results.map((r) => ({ name: r.name, lat: r.lat, lon: r.lon })),
