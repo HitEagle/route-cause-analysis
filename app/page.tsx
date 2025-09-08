@@ -16,7 +16,7 @@ export default function Home() {
 
         <div className="brutalist-card bg-white min-h-0 flex flex-col">
           <header className="p-4 border-b-4 border-black flex items-center justify-between">
-            <h1 className="text-2xl md:text-3xl font-extrabold uppercase tracking-tight">Route Planner</h1>
+            <h1 className="text-2xl md:text-3xl font-extrabold uppercase tracking-tight">Route Cause Analysis</h1>
             <button
               type="button"
               onClick={resetAll}

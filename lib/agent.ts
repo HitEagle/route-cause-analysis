@@ -38,7 +38,7 @@ const submitRoutePlan = tool({
 });
 
 export const routeAgent = new Agent({
-  name: "Route Planner",
+  name: "Route Cause Analysis",
   instructions:
     "You help plan driving routes from free‑form requests. " +
     "Ask clarifying questions until you have at least a start and an end. " +

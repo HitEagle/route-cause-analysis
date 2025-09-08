@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Brutalist Route Planner",
-  description: "Chat to plan routes with a bold map UI",
+  title: "Route Cause Analysis",
+  description: "Agent-powered route planning with a bold, brutalist map UI",
 };
 
 export default function RootLayout({
