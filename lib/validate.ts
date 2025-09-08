@@ -39,4 +39,3 @@ export async function validateJson<T extends z.ZodTypeAny>(
 
   return { success: true, data: parsed.data };
 }
-

@@ -35,15 +35,6 @@ function lastAssistantText(history: AgentHistoryItem[]): string | null {
 function extractPlan(history: AgentHistoryItem[]):
   | {
       waypoints: { query: string; label: string; role: "start" | "via" | "end" }[];
-      constraints?: {
-        includeRoads?: string[];
-        avoidRoads?: string[];
-        avoidHighways?: boolean;
-        avoidTolls?: boolean;
-        avoidFerries?: boolean;
-        preferScenic?: boolean;
-        notes?: string;
-      };
     }
   | null {
   for (const item of history ?? []) {
@@ -54,7 +45,6 @@ function extractPlan(history: AgentHistoryItem[]):
           if (Array.isArray(parsed.waypoints) && parsed.waypoints.length >= 2) {
             return {
               waypoints: parsed.waypoints as { query: string; label: string; role: "start" | "via" | "end" }[],
-              constraints: parsed.constraints ?? undefined,
             };
           }
         }
@@ -173,7 +163,6 @@ export function Chat() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               waypoints: resolved.waypoints.map((wp) => ({ lat: wp.lat, lon: wp.lon })),
-              constraints: plan.constraints ?? {},
             }),
             signal: abortRef.current?.signal,
           });
