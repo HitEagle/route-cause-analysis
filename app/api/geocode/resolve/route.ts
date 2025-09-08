@@ -3,7 +3,7 @@ import { validateJson } from "@/lib/validate";
 import { NextRequest, NextResponse } from "next/server";
 import z from "zod";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
   try {
